@@ -162,6 +162,7 @@ export const ReactMediaRecorder = ({
       await getMediaStream();
     }
     if (mediaStream.current) {
+      mediaChunks.current = [];
       mediaRecorder.current = new MediaRecorder(mediaStream.current);
       mediaRecorder.current.ondataavailable = onRecordingActive;
       mediaRecorder.current.onstop = onRecordingStop;
