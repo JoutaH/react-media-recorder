@@ -20,6 +20,8 @@ type ReactMediaRecorderProps = {
   video?: boolean | MediaTrackConstraints;
   screen?: boolean;
   onStop?: (blobUrl: string) => void;
+  onStart?: () => void;
+  onStatusChange?: (status: StatusMessages) => void;
   blobPropertyBag?: BlobPropertyBag;
   mediaRecorderOptions?: MediaRecorderOptions | null;
 };
@@ -55,20 +57,32 @@ export const ReactMediaRecorder = ({
   audio = true,
   video = false,
   onStop = () => null,
+  onStart = () => null,
+  onStatusChange = () => null,
   blobPropertyBag,
   screen = false,
   mediaRecorderOptions = null
 }: ReactMediaRecorderProps) => {
+  const useStatus = (statusMessage: StatusMessages) => {
+    const [status, setStatus] = useState<StatusMessages>("idle");
+
+    useEffect(() => {
+      setStatus(statusMessage);
+      onStatusChange(status);
+    });
+
+    return status;
+  };
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const mediaChunks = useRef<Blob[]>([]);
   const mediaStream = useRef<MediaStream | null>(null);
-  const [status, setStatus] = useState<StatusMessages>("idle");
+  const status = useStatus("idle");
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<keyof typeof RecorderErrors>("NONE");
 
   const getMediaStream = useCallback(async () => {
-    setStatus("acquiring_media");
+    useStatus("acquiring_media");
     const requiredMedia: MediaStreamConstraints = {
       audio: typeof audio === "boolean" ? !!audio : audio,
       video: typeof video === "boolean" ? !!video : video
@@ -95,10 +109,10 @@ export const ReactMediaRecorder = ({
         );
         mediaStream.current = stream;
       }
-      setStatus("idle");
+      useStatus("idle");
     } catch (error) {
       setError(error.name);
-      setStatus("idle");
+      useStatus("idle");
     }
   }, [audio, video, screen]);
 
@@ -168,11 +182,12 @@ export const ReactMediaRecorder = ({
       mediaRecorder.current.onstop = onRecordingStop;
       mediaRecorder.current.onerror = () => {
         setError("NO_RECORDER");
-        setStatus("idle");
+        useStatus("idle");
       };
       mediaRecorder.current.start();
-      setStatus("recording");
+      useStatus("recording");
     }
+    onStart();
   };
 
   const onRecordingActive = ({ data }: BlobEvent) => {
@@ -184,7 +199,7 @@ export const ReactMediaRecorder = ({
       blobPropertyBag || video ? { type: "video/mp4" } : { type: "audio/wav" };
     const blob = new Blob(mediaChunks.current, blobProperty);
     const url = URL.createObjectURL(blob);
-    setStatus("stopped");
+    useStatus("stopped");
     setMediaBlobUrl(url);
     onStop(url);
   };
@@ -211,7 +226,7 @@ export const ReactMediaRecorder = ({
 
   const stopRecording = () => {
     if (mediaRecorder.current) {
-      setStatus("stopping");
+      useStatus("stopping");
       mediaRecorder.current.stop();
     }
   };
