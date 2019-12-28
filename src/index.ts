@@ -63,26 +63,16 @@ export const ReactMediaRecorder = ({
   screen = false,
   mediaRecorderOptions = null
 }: ReactMediaRecorderProps) => {
-  const useStatus = (statusMessage: StatusMessages) => {
-    const [status, setStatus] = useState<StatusMessages>("idle");
-
-    useEffect(() => {
-      setStatus(statusMessage);
-      onStatusChange(status);
-    });
-
-    return status;
-  };
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const mediaChunks = useRef<Blob[]>([]);
   const mediaStream = useRef<MediaStream | null>(null);
-  const status = useStatus("idle");
+  const [status, setStatus] = useState<StatusMessages>("idle");
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<keyof typeof RecorderErrors>("NONE");
 
   const getMediaStream = useCallback(async () => {
-    useStatus("acquiring_media");
+    setStatus("acquiring_media");
     const requiredMedia: MediaStreamConstraints = {
       audio: typeof audio === "boolean" ? !!audio : audio,
       video: typeof video === "boolean" ? !!video : video
@@ -109,10 +99,10 @@ export const ReactMediaRecorder = ({
         );
         mediaStream.current = stream;
       }
-      useStatus("idle");
+      setStatus("idle");
     } catch (error) {
       setError(error.name);
-      useStatus("idle");
+      setStatus("idle");
     }
   }, [audio, video, screen]);
 
@@ -168,6 +158,10 @@ export const ReactMediaRecorder = ({
     }
   }, [audio, screen, video, getMediaStream, mediaRecorderOptions]);
 
+  useEffect(() => {
+    onStatusChange(status)
+  }, [status])
+
   // Media Recorder Handlers
 
   const startRecording = async () => {
@@ -182,10 +176,10 @@ export const ReactMediaRecorder = ({
       mediaRecorder.current.onstop = onRecordingStop;
       mediaRecorder.current.onerror = () => {
         setError("NO_RECORDER");
-        useStatus("idle");
+        setStatus("idle");
       };
       mediaRecorder.current.start();
-      useStatus("recording");
+      setStatus("recording");
     }
     onStart();
   };
@@ -199,7 +193,7 @@ export const ReactMediaRecorder = ({
       blobPropertyBag || video ? { type: "video/mp4" } : { type: "audio/wav" };
     const blob = new Blob(mediaChunks.current, blobProperty);
     const url = URL.createObjectURL(blob);
-    useStatus("stopped");
+    setStatus("stopped");
     setMediaBlobUrl(url);
     onStop(url);
   };
@@ -226,7 +220,7 @@ export const ReactMediaRecorder = ({
 
   const stopRecording = () => {
     if (mediaRecorder.current) {
-      useStatus("stopping");
+      setStatus("stopping");
       mediaRecorder.current.stop();
     }
   };
